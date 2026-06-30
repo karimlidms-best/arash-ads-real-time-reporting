@@ -1,2 +1,2 @@
-# arash-ads-real-time-reporting
-Arash Company və Ekspert Lazer Mərkəzinin canlı reklam və satış hesabatı.
+# Arash Holding Dashboard v3
+Meta Ads + Odoo CRM + Google Sheets dashboard for Arash Holding & Ekspert departments.

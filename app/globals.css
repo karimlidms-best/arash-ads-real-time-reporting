@@ -1,0 +1,44 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+html, body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+
+.tab-num { font-variant-numeric: tabular-nums; }
+
+input[type="date"] { font-family: inherit; color: #0f172a; }
+input[type="date"]::-webkit-calendar-picker-indicator { cursor: pointer; opacity: 0.5; }
+input[type="date"]::-webkit-calendar-picker-indicator:hover { opacity: 1; }
+
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2210%22%20height%3D%226%22%20viewBox%3D%220%200%2010%206%22%3E%3Cpath%20fill%3D%22%2364748b%22%20d%3D%22M5%206L0%200h10z%22%2F%3E%3C%2Fsvg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  padding-right: 2rem;
+}
+
+.tooltip-wrap { position: relative; display: inline-flex; }
+.tooltip-wrap:hover .tooltip-content { opacity: 1; visibility: visible; }
+.tooltip-content {
+  position: absolute; bottom: 100%; left: 50%;
+  transform: translateX(-50%); margin-bottom: 6px;
+  padding: 6px 10px; background: #0f172a; color: #fff;
+  font-size: 11px; line-height: 1.4; border-radius: 6px;
+  opacity: 0; visibility: hidden; transition: opacity 0.15s;
+  pointer-events: none; z-index: 100; width: 220px; text-align: center;
+}
+
+.gran-btn {
+  padding: 4px 10px; font-size: 11px; font-weight: 500;
+  color: #64748b; border-radius: 6px; transition: all 0.15s;
+  cursor: pointer; border: none; background: transparent;
+}
+.gran-btn.active { background: #0f172a; color: #fff; }
+.gran-toggle {
+  display: inline-flex; gap: 2px;
+  background: #f1f5f9; padding: 2px; border-radius: 8px;
+}
