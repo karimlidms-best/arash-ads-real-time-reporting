@@ -2,6 +2,9 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Info } from 'lucide-react';
 import { Line, Doughnut } from 'react-chartjs-2';
+import { Chart as ChartJS, ArcElement, CategoryScale, Filler, Legend, LineElement, LinearScale, PointElement, Tooltip } from 'chart.js';
+
+ChartJS.register(ArcElement, CategoryScale, Filler, Legend, LineElement, LinearScale, PointElement, Tooltip);
 import GranularityToggle from './GranularityToggle';
 import type { AcademyRecord } from '@/lib/types';
 import { fmtAZN, fmtNum, dailyLabels, monthlyLabels } from './utils';

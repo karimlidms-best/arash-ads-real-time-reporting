@@ -1,6 +1,9 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { Line, Doughnut } from 'react-chartjs-2';
+import { Chart as ChartJS, ArcElement, CategoryScale, Filler, Legend, LineElement, LinearScale, PointElement, Tooltip } from 'chart.js';
+
+ChartJS.register(ArcElement, CategoryScale, Filler, Legend, LineElement, LinearScale, PointElement, Tooltip);
 import GranularityToggle from './GranularityToggle';
 import type { Dept } from '@/lib/types';
 import { fmtUSD, fmtNum, fmtPct, dailyLabels, monthlyLabels, dailyValues, aggregateToMonthly, PIE_COLORS } from './utils';

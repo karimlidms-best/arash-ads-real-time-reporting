@@ -2,6 +2,9 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Info } from 'lucide-react';
 import { Line, Doughnut, Bar } from 'react-chartjs-2';
+import { Chart as ChartJS, ArcElement, LineElement, PointElement, LinearScale, CategoryScale, BarElement, Tooltip, Legend, Filler } from 'chart.js';
+
+ChartJS.register(ArcElement, LineElement, PointElement, LinearScale, CategoryScale, BarElement, Tooltip, Legend, Filler);
 import GranularityToggle from './GranularityToggle';
 import type { ClinicRecord } from '@/lib/types';
 import { fmtAZN, fmtNum, dailyLabels, monthlyLabels, sourceColor } from './utils';
