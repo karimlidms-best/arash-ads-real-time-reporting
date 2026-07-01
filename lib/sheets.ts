@@ -32,7 +32,7 @@ async function fetchSheetValues(spreadsheetId: string, range: string): Promise<s
   if (!API_KEY || !spreadsheetId) return [];
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}?key=${API_KEY}`;
   try {
-    const res = await fetch(url, { next: { revalidate: 60 } });
+    const res = await fetch(url, { cache: 'no-store' });
     if (!res.ok) return [];
     const data = await res.json();
     return data.values || [];
@@ -45,7 +45,7 @@ async function listSheetTabs(spreadsheetId: string): Promise<string[]> {
   if (!API_KEY || !spreadsheetId) return [];
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?key=${API_KEY}&fields=sheets.properties.title`;
   try {
-    const res = await fetch(url, { next: { revalidate: 300 } });
+    const res = await fetch(url, { cache: 'no-store' });
     if (!res.ok) return [];
     const data = await res.json();
     return (data.sheets || []).map((s: any) => s.properties.title);

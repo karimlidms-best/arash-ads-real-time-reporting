@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { fetchAdSets } from '@/lib/meta';
 import type { Dept } from '@/lib/types';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const dept = (searchParams.get('dept') || 'hamisi-arash') as Dept;

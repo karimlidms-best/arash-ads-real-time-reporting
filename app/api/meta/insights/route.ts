@@ -4,6 +4,8 @@ import { fetchOdooLeadCount } from '@/lib/odoo';
 import type { Dept } from '@/lib/types';
 import { DEPTS } from '@/lib/types';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const dept = (searchParams.get('dept') || 'hamisi-arash') as Dept;
