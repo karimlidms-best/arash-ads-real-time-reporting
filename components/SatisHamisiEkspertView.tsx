@@ -1,34 +1,30 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { Info, ArrowUp } from 'lucide-react';
-import { fmtAZN } from './utils';
+import DateFilter from './DateFilter';
+import { fmtAZN, type DateOption, dateRangeFromOption } from './utils';
 
-interface Props {
-  from: string;
-  to: string;
-  onFromChange: (v: string) => void;
-  onToChange: (v: string) => void;
-}
-
-export default function SatisHamisiEkspertView({ from, to, onFromChange, onToChange }: Props) {
+export default function SatisHamisiEkspertView() {
   const [clinic, setClinic] = useState<any[]>([]);
   const [academy, setAcademy] = useState<any[]>([]);
-  const [dateValue, setDateValue] = useState('2026-05');
+
+  const [dateOption, setDateOption] = useState<DateOption>('this-month');
+  const initialRange = dateRangeFromOption('this-month');
+  const [from, setFrom] = useState(initialRange.from);
+  const [to, setTo] = useState(initialRange.to);
+
+  useEffect(() => {
+    if (dateOption !== 'custom') {
+      const r = dateRangeFromOption(dateOption);
+      setFrom(r.from);
+      setTo(r.to);
+    }
+  }, [dateOption]);
 
   useEffect(() => {
     fetch(`/api/sheets/clinic?from=${from}&to=${to}`).then(r => r.json()).then(d => setClinic(d.records || []));
     fetch(`/api/sheets/academy?from=${from}&to=${to}`).then(r => r.json()).then(d => setAcademy(d.filtered || []));
   }, [from, to]);
-
-  function changeDateMonth(value: string) {
-    setDateValue(value);
-    if (value === 'custom') return;
-    const [y, m] = value.split('-').map(Number);
-    const fromDate = new Date(y, m - 1, 1);
-    const toDate = new Date(y, m, 0);
-    onFromChange(fromDate.toISOString().slice(0, 10));
-    onToChange(toDate.toISOString().slice(0, 10));
-  }
 
   const clinicRevenue = clinic.reduce((s, r) => s + (r.amount || 0), 0);
   const academyRevenue = academy.reduce((s, r) => s + (r.payment || 0), 0);
@@ -44,28 +40,9 @@ export default function SatisHamisiEkspertView({ from, to, onFromChange, onToCha
       <div className="bg-white rounded-2xl border border-slate-200/70 shadow-sm p-4">
         <div>
           <label className="block text-[11px] font-medium text-slate-500 mb-1.5 px-1">Tarix</label>
-          <select value={dateValue} onChange={(e) => changeDateMonth(e.target.value)}
-                  className="w-full sm:w-[300px] rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none cursor-pointer">
-            <option value="2026-05">May 2026</option>
-            <option value="2026-04">Aprel 2026</option>
-            <option value="2026-03">Mart 2026</option>
-            <option value="2026-02">Fevral 2026</option>
-            <option value="2026-01">Yanvar 2026</option>
-            <option value="custom">Tarix aralığı seç</option>
-          </select>
+          <DateFilter option={dateOption} from={from} to={to}
+                      onOptionChange={setDateOption} onFromChange={setFrom} onToChange={setTo} />
         </div>
-        {dateValue === 'custom' && (
-          <div className="mt-3 pt-3 border-t border-slate-100">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs text-slate-500 font-medium">Diapazon:</span>
-              <input type="date" value={from} onChange={(e) => onFromChange(e.target.value)}
-                     className="rounded-lg border border-slate-200 bg-white text-sm px-3 py-1.5 outline-none" />
-              <span className="text-slate-400">→</span>
-              <input type="date" value={to} onChange={(e) => onToChange(e.target.value)}
-                     className="rounded-lg border border-slate-200 bg-white text-sm px-3 py-1.5 outline-none" />
-            </div>
-          </div>
-        )}
       </div>
 
       <div className="rounded-2xl p-6 border" style={{ background: '#f0fdf4', borderColor: '#dcfce7' }}>

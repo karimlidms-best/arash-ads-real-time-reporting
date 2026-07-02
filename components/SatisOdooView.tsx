@@ -1,19 +1,16 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { Line, Doughnut } from 'react-chartjs-2';
-import { Chart as ChartJS, ArcElement, CategoryScale, Filler, Legend, LineElement, LinearScale, PointElement, Tooltip } from 'chart.js';
+import { Chart as ChartJS, ArcElement, LineElement, PointElement, LinearScale, CategoryScale, BarElement, Tooltip, Legend, Filler } from 'chart.js';
+ChartJS.register(ArcElement, LineElement, PointElement, LinearScale, CategoryScale, BarElement, Tooltip, Legend, Filler);
 
-ChartJS.register(ArcElement, CategoryScale, Filler, Legend, LineElement, LinearScale, PointElement, Tooltip);
 import GranularityToggle from './GranularityToggle';
+import DateFilter from './DateFilter';
 import type { Dept } from '@/lib/types';
-import { fmtUSD, fmtNum, fmtPct, dailyLabels, monthlyLabels, dailyValues, aggregateToMonthly, PIE_COLORS } from './utils';
+import { fmtUSD, fmtNum, fmtPct, dailyLabels, monthlyLabels, dailyValues, aggregateToMonthly, PIE_COLORS, type DateOption, dateRangeFromOption } from './utils';
 
 interface Props {
   dept: Dept;
-  from: string;
-  to: string;
-  onFromChange: (v: string) => void;
-  onToChange: (v: string) => void;
 }
 
 interface FilterLists {
@@ -22,33 +19,35 @@ interface FilterLists {
   campaigns: string[];
 }
 
-export default function SatisOdooView({ dept, from, to, onFromChange, onToChange }: Props) {
+export default function SatisOdooView({ dept }: Props) {
   const [lists, setLists] = useState<FilterLists>({ tags: [], sources: [], campaigns: [] });
   const [tag, setTag] = useState('all');
   const [campaign, setCampaign] = useState('all');
   const [source, setSource] = useState('all');
   const [data, setData] = useState<any>(null);
   const [chartGran, setChartGran] = useState<'day' | 'month'>('day');
-  const [dateValue, setDateValue] = useState('2026-05');
+
+  const [dateOption, setDateOption] = useState<DateOption>('this-month');
+  const initialRange = dateRangeFromOption('this-month');
+  const [from, setFrom] = useState(initialRange.from);
+  const [to, setTo] = useState(initialRange.to);
 
   useEffect(() => {
     fetch('/api/odoo/tags').then(r => r.json()).then(setLists).catch(() => {});
   }, []);
 
   useEffect(() => {
+    if (dateOption !== 'custom') {
+      const r = dateRangeFromOption(dateOption);
+      setFrom(r.from);
+      setTo(r.to);
+    }
+  }, [dateOption]);
+
+  useEffect(() => {
     const url = `/api/odoo/satis?dept=${dept}&from=${from}&to=${to}&tag=${encodeURIComponent(tag)}&campaign=${encodeURIComponent(campaign)}&source=${encodeURIComponent(source)}`;
     fetch(url).then(r => r.json()).then(setData).catch(() => setData(null));
   }, [dept, from, to, tag, campaign, source]);
-
-  function changeDateMonth(value: string) {
-    setDateValue(value);
-    if (value === 'custom') return;
-    const [y, m] = value.split('-').map(Number);
-    const fromDate = new Date(y, m - 1, 1);
-    const toDate = new Date(y, m, 0);
-    onFromChange(fromDate.toISOString().slice(0, 10));
-    onToChange(toDate.toISOString().slice(0, 10));
-  }
 
   const labels = chartGran === 'day' ? dailyLabels(from, to) : monthlyLabels(from, to);
   const daily = data?.dailyLeads || [];
@@ -61,15 +60,14 @@ export default function SatisOdooView({ dept, from, to, onFromChange, onToChange
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div>
             <label className="block text-[11px] font-medium text-slate-500 mb-1.5 px-1">Tarix</label>
-            <select value={dateValue} onChange={(e) => changeDateMonth(e.target.value)}
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none cursor-pointer">
-              <option value="2026-05">May 2026</option>
-              <option value="2026-04">Aprel 2026</option>
-              <option value="2026-03">Mart 2026</option>
-              <option value="2026-02">Fevral 2026</option>
-              <option value="2026-01">Yanvar 2026</option>
-              <option value="custom">Tarix aralığı seç</option>
-            </select>
+            <DateFilter
+              option={dateOption}
+              from={from}
+              to={to}
+              onOptionChange={setDateOption}
+              onFromChange={setFrom}
+              onToChange={setTo}
+            />
           </div>
           <div>
             <label className="block text-[11px] font-medium text-slate-500 mb-1.5 px-1">Tags</label>
@@ -96,25 +94,13 @@ export default function SatisOdooView({ dept, from, to, onFromChange, onToChange
             </select>
           </div>
         </div>
-        {dateValue === 'custom' && (
-          <div className="mt-3 pt-3 border-t border-slate-100">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs text-slate-500 font-medium">Diapazon:</span>
-              <input type="date" value={from} onChange={(e) => onFromChange(e.target.value)}
-                     className="rounded-lg border border-slate-200 bg-white text-sm px-3 py-1.5 outline-none" />
-              <span className="text-slate-400">→</span>
-              <input type="date" value={to} onChange={(e) => onToChange(e.target.value)}
-                     className="rounded-lg border border-slate-200 bg-white text-sm px-3 py-1.5 outline-none" />
-            </div>
-          </div>
-        )}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="rounded-2xl p-5 border" style={{ background: '#eff6ff', borderColor: '#dbeafe' }}>
           <div className="text-xs font-medium text-slate-600 mb-1">Close Rate</div>
           <div className="text-4xl font-semibold tab-num" style={{ color: '#1d4ed8' }}>{fmtPct(data?.closeRate || 0)}</div>
-          <div className="text-xs mt-2 text-slate-500">{data?.wonCount || 0} won / {data?.totalOpps || 0} opps</div>
+          <div className="text-xs mt-2 text-slate-500">{data?.wonCount || 0} won / {data?.closedCount || 0} closed</div>
         </div>
         <div className="rounded-2xl p-5 border" style={{ background: '#f0fdf4', borderColor: '#dcfce7' }}>
           <div className="text-xs font-medium text-slate-600 mb-1">Sales Revenue From Digital</div>
@@ -124,16 +110,13 @@ export default function SatisOdooView({ dept, from, to, onFromChange, onToChange
         <div className="rounded-2xl p-5 border" style={{ background: '#fffbeb', borderColor: '#fef3c7' }}>
           <div className="text-xs font-medium text-slate-600 mb-1">Open Opportunities</div>
           <div className="text-4xl font-semibold tab-num" style={{ color: '#b45309' }}>{fmtNum(data?.openOpportunities || 0)}</div>
-          <div className="text-xs mt-2 text-slate-500">Aktiv pipeline</div>
+          <div className="text-xs mt-2 text-slate-500">Hazırda aktiv (filtersiz)</div>
         </div>
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-200/70 shadow-sm p-5">
         <div className="mb-4 flex items-start justify-between gap-3">
-          <div>
-            <h3 className="font-semibold">Total leads və Won</h3>
-            <p className="text-xs text-slate-500 mt-0.5">Seçilmiş dövr · {chartGran === 'day' ? 'günlük' : 'aylıq'}</p>
-          </div>
+          <div><h3 className="font-semibold">Total leads və Won</h3><p className="text-xs text-slate-500 mt-0.5">Seçilmiş dövr · {chartGran === 'day' ? 'günlük' : 'aylıq'}</p></div>
           <GranularityToggle value={chartGran} onChange={setChartGran} />
         </div>
         <div style={{ height: 280 }}>

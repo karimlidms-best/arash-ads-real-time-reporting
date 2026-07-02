@@ -1,13 +1,15 @@
 'use client';
 import { useRouter } from 'next/navigation';
+import DateFilter from './DateFilter';
+import type { DateOption } from './utils';
 
 interface Props {
   dept: string;
   onDeptChange: (d: string) => void;
-  dateValue: string;
+  dateOption: DateOption;
   dateFrom: string;
   dateTo: string;
-  onDateValueChange: (v: string) => void;
+  onDateOptionChange: (o: DateOption) => void;
   onDateFromChange: (v: string) => void;
   onDateToChange: (v: string) => void;
   showDate: boolean;
@@ -52,26 +54,15 @@ export default function Header(props: Props) {
         </select>
 
         {props.showDate && (
-          <div className="flex items-center gap-2 flex-wrap">
-            <select value={props.dateValue} onChange={(e) => props.onDateValueChange(e.target.value)}
-                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium outline-none cursor-pointer">
-              <option value="2026-05">May 2026</option>
-              <option value="2026-04">Aprel 2026</option>
-              <option value="2026-03">Mart 2026</option>
-              <option value="2026-02">Fevral 2026</option>
-              <option value="2026-01">Yanvar 2026</option>
-              <option value="custom">Tarix aralığı seç</option>
-            </select>
-            {props.dateValue === 'custom' && (
-              <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-2 py-1.5">
-                <input type="date" value={props.dateFrom} onChange={(e) => props.onDateFromChange(e.target.value)}
-                       className="bg-transparent text-sm outline-none px-1" />
-                <span className="text-slate-400 text-sm">→</span>
-                <input type="date" value={props.dateTo} onChange={(e) => props.onDateToChange(e.target.value)}
-                       className="bg-transparent text-sm outline-none px-1" />
-              </div>
-            )}
-          </div>
+          <DateFilter
+            option={props.dateOption}
+            from={props.dateFrom}
+            to={props.dateTo}
+            onOptionChange={props.onDateOptionChange}
+            onFromChange={props.onDateFromChange}
+            onToChange={props.onDateToChange}
+            compact
+          />
         )}
 
         <button onClick={logout} className="text-sm text-slate-500 hover:text-slate-900 transition px-2">Çıxış</button>

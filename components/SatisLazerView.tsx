@@ -3,45 +3,41 @@ import { useEffect, useState, useMemo } from 'react';
 import { Info } from 'lucide-react';
 import { Line, Doughnut, Bar } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, LineElement, PointElement, LinearScale, CategoryScale, BarElement, Tooltip, Legend, Filler } from 'chart.js';
-
 ChartJS.register(ArcElement, LineElement, PointElement, LinearScale, CategoryScale, BarElement, Tooltip, Legend, Filler);
+
 import GranularityToggle from './GranularityToggle';
+import DateFilter from './DateFilter';
 import type { ClinicRecord } from '@/lib/types';
-import { fmtAZN, fmtNum, dailyLabels, monthlyLabels, sourceColor } from './utils';
+import { fmtAZN, fmtNum, dailyLabels, monthlyLabels, sourceColor, type DateOption, dateRangeFromOption } from './utils';
 
 const DOCTORS = ['Fərhad Qarayev', 'Nigar Sadıqova', 'Zülfiyyə İskəndərova', 'Samirə Teymurova', 'Sevinc Rüstəmzadə', 'Leyla Zülfüqarova', 'Nazirə İbrahimova'];
 const PROCEDURES = ['Lazer epilyasiya', 'Üzün təmizlənməsi', 'Tattoo silinməsi', 'Dermatoloji prosedurlar', 'Kosmetoloji prosedurlar'];
 const SOURCES = ['Instagram', 'WhatsApp', 'Klinikaya gələn', 'Tövsiyə', 'Zəng', 'GPT', 'Google'];
 const PROC_COLORS = ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444'];
 
-interface Props {
-  from: string;
-  to: string;
-  onFromChange: (v: string) => void;
-  onToChange: (v: string) => void;
-}
-
-export default function SatisLazerView({ from, to, onFromChange, onToChange }: Props) {
+export default function SatisLazerView() {
   const [records, setRecords] = useState<ClinicRecord[]>([]);
   const [doctor, setDoctor] = useState('all');
   const [procedure, setProcedure] = useState('all');
   const [source, setSource] = useState('all');
-  const [dateValue, setDateValue] = useState('2026-05');
   const [chartGran, setChartGran] = useState<'day' | 'month'>('day');
+
+  const [dateOption, setDateOption] = useState<DateOption>('this-month');
+  const initialRange = dateRangeFromOption('this-month');
+  const [from, setFrom] = useState(initialRange.from);
+  const [to, setTo] = useState(initialRange.to);
+
+  useEffect(() => {
+    if (dateOption !== 'custom') {
+      const r = dateRangeFromOption(dateOption);
+      setFrom(r.from);
+      setTo(r.to);
+    }
+  }, [dateOption]);
 
   useEffect(() => {
     fetch(`/api/sheets/clinic?from=${from}&to=${to}`).then(r => r.json()).then(d => setRecords(d.records || []));
   }, [from, to]);
-
-  function changeDateMonth(value: string) {
-    setDateValue(value);
-    if (value === 'custom') return;
-    const [y, m] = value.split('-').map(Number);
-    const fromDate = new Date(y, m - 1, 1);
-    const toDate = new Date(y, m, 0);
-    onFromChange(fromDate.toISOString().slice(0, 10));
-    onToChange(toDate.toISOString().slice(0, 10));
-  }
 
   const filtered = useMemo(() => {
     return records.filter(r => {
@@ -56,24 +52,17 @@ export default function SatisLazerView({ from, to, onFromChange, onToChange }: P
   const totalPatients = filtered.length;
   const avgAmount = totalPatients > 0 ? totalRevenue / totalPatients : 0;
 
-  // Daily trend
   const dateRevenue = new Map<string, number>();
-  for (const r of filtered) {
-    dateRevenue.set(r.date, (dateRevenue.get(r.date) || 0) + r.amount);
-  }
-  const dailyArr = Array.from(dateRevenue.entries()).map(([date, total]) => ({ date, total })).sort((a, b) => a.date.localeCompare(b.date));
+  for (const r of filtered) dateRevenue.set(r.date, (dateRevenue.get(r.date) || 0) + r.amount);
 
-  // Procedure breakdown
   const procCount = new Map<string, number>();
   for (const r of filtered) procCount.set(r.procedure, (procCount.get(r.procedure) || 0) + 1);
   const procData = PROCEDURES.map((p, i) => ({ name: p, count: procCount.get(p) || 0, color: PROC_COLORS[i] }));
 
-  // Source breakdown
   const srcCount = new Map<string, number>();
   for (const r of filtered) srcCount.set(r.source, (srcCount.get(r.source) || 0) + 1);
   const srcData = SOURCES.map(s => ({ name: s, count: srcCount.get(s) || 0, color: sourceColor(s, '#94a3b8') }));
 
-  // Doctor performance
   const docMap = new Map<string, { revenue: number; count: number }>();
   for (const r of filtered) {
     if (!docMap.has(r.doctor)) docMap.set(r.doctor, { revenue: 0, count: 0 });
@@ -85,10 +74,8 @@ export default function SatisLazerView({ from, to, onFromChange, onToChange }: P
     .map(([name, v]) => ({ name, ...v }))
     .sort((a, b) => b.revenue - a.revenue);
 
-  // Recent 10
   const recent = [...filtered].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 10);
 
-  // Chart data
   const labels = chartGran === 'day' ? dailyLabels(from, to) : monthlyLabels(from, to);
   const trendData = chartGran === 'day'
     ? (() => {
@@ -106,8 +93,7 @@ export default function SatisLazerView({ from, to, onFromChange, onToChange }: P
         const monthMap = new Map<string, number>();
         for (const [date, val] of dateRevenue) {
           const [y, m] = date.split('-');
-          const key = `${y}-${m}`;
-          monthMap.set(key, (monthMap.get(key) || 0) + val);
+          monthMap.set(`${y}-${m}`, (monthMap.get(`${y}-${m}`) || 0) + val);
         }
         const arr: number[] = [];
         const cur = new Date(from);
@@ -133,15 +119,8 @@ export default function SatisLazerView({ from, to, onFromChange, onToChange }: P
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div>
             <label className="block text-[11px] font-medium text-slate-500 mb-1.5 px-1">Tarix</label>
-            <select value={dateValue} onChange={(e) => changeDateMonth(e.target.value)}
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none cursor-pointer">
-              <option value="2026-05">May 2026</option>
-              <option value="2026-04">Aprel 2026</option>
-              <option value="2026-03">Mart 2026</option>
-              <option value="2026-02">Fevral 2026</option>
-              <option value="2026-01">Yanvar 2026</option>
-              <option value="custom">Tarix aralığı seç</option>
-            </select>
+            <DateFilter option={dateOption} from={from} to={to}
+                        onOptionChange={setDateOption} onFromChange={setFrom} onToChange={setTo} />
           </div>
           <div>
             <label className="block text-[11px] font-medium text-slate-500 mb-1.5 px-1">Həkim</label>
@@ -168,18 +147,6 @@ export default function SatisLazerView({ from, to, onFromChange, onToChange }: P
             </select>
           </div>
         </div>
-        {dateValue === 'custom' && (
-          <div className="mt-3 pt-3 border-t border-slate-100">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs text-slate-500 font-medium">Diapazon:</span>
-              <input type="date" value={from} onChange={(e) => onFromChange(e.target.value)}
-                     className="rounded-lg border border-slate-200 bg-white text-sm px-3 py-1.5 outline-none" />
-              <span className="text-slate-400">→</span>
-              <input type="date" value={to} onChange={(e) => onToChange(e.target.value)}
-                     className="rounded-lg border border-slate-200 bg-white text-sm px-3 py-1.5 outline-none" />
-            </div>
-          </div>
-        )}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

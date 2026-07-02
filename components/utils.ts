@@ -1,5 +1,76 @@
 export const MONTHS_AZ = ['Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'İyun', 'İyul', 'Avqust', 'Sentyabr', 'Oktyabr', 'Noyabr', 'Dekabr'];
 export const MONTHS_AZ_SHORT = ['Yan', 'Fev', 'Mar', 'Apr', 'May', 'İyn', 'İyl', 'Avq', 'Sen', 'Okt', 'Noy', 'Dek'];
+export type DateOption = 'today-yesterday' | 'last-7' | 'last-14' | 'last-21' | 'last-30' | 'this-month' | 'last-month' | 'all-time' | 'custom';
+
+export interface DateOptionInfo {
+  value: DateOption;
+  label: string;
+}
+
+export const DATE_OPTIONS: DateOptionInfo[] = [
+  { value: 'today-yesterday', label: 'Bugün və dünən' },
+  { value: 'last-7', label: 'Son 7 gün' },
+  { value: 'last-14', label: 'Son 14 gün' },
+  { value: 'last-21', label: 'Son 21 gün' },
+  { value: 'last-30', label: 'Son 30 gün' },
+  { value: 'this-month', label: 'Bu ay' },
+  { value: 'last-month', label: 'Keçən ay' },
+  { value: 'all-time', label: 'Bütün zamanlar' },
+  { value: 'custom', label: 'Tarix aralığı seç' },
+];
+
+// Default earliest date - all-time uses this as starting point
+export const ALL_TIME_START = '2026-01-01';
+
+export function dateRangeFromOption(option: DateOption, customFrom?: string, customTo?: string): { from: string; to: string } {
+  const today = new Date();
+  today.setHours(12, 0, 0, 0); // Use noon to avoid TZ boundary issues
+  const todayStr = today.toISOString().slice(0, 10);
+
+  const daysBack = (n: number): string => {
+    const d = new Date(today);
+    d.setDate(d.getDate() - n);
+    return d.toISOString().slice(0, 10);
+  };
+
+  switch (option) {
+    case 'today-yesterday':
+      return { from: daysBack(1), to: todayStr };
+    case 'last-7':
+      return { from: daysBack(6), to: todayStr };
+    case 'last-14':
+      return { from: daysBack(13), to: todayStr };
+    case 'last-21':
+      return { from: daysBack(20), to: todayStr };
+    case 'last-30':
+      return { from: daysBack(29), to: todayStr };
+    case 'this-month': {
+      const start = new Date(today.getFullYear(), today.getMonth(), 1);
+      return { from: start.toISOString().slice(0, 10), to: todayStr };
+    }
+    case 'last-month': {
+      const start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+      const end = new Date(today.getFullYear(), today.getMonth(), 0);
+      return { from: start.toISOString().slice(0, 10), to: end.toISOString().slice(0, 10) };
+    }
+    case 'all-time':
+      return { from: ALL_TIME_START, to: todayStr };
+    case 'custom':
+      return { from: customFrom || todayStr, to: customTo || todayStr };
+    default:
+      return { from: todayStr, to: todayStr };
+  }
+}
+
+export function formatDateRangeLabel(option: DateOption, from: string, to: string): string {
+  if (option === 'custom') {
+    return fmtDate(from) + ' – ' + fmtDate(to);
+  }
+  const found = DATE_OPTIONS.find(o => o.value === option);
+  return found ? found.label : '';
+}
+
+
 
 export function fmtDate(iso: string): string {
   const [y, m, d] = iso.split('-').map(Number);

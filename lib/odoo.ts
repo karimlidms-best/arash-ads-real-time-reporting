@@ -157,13 +157,37 @@ export async function fetchSatisData(filters: SatisFilters): Promise<SatisData> 
       return wonStageIds.has(stageId);
     });
     const lostOpps = opps.filter((l: any) => !l.active);
-    const openOpps = opps.filter((l: any) => {
-      const stageId = l.stage_id ? l.stage_id[0] : 0;
-      return l.active && !wonStageIds.has(stageId);
-    });
+
+    // Close Rate: won / (won + lost), open opps excluded
+    const closedCount = wonOpps.length + lostOpps.length;
+    const closeRate = closedCount > 0 ? (wonOpps.length / closedCount) * 100 : 0;
+
+    // Open Opportunities: SEPARATE query — filter-independent, always all-time active
+    let openCount = 0;
+    try {
+      const openDomain: any[] = [
+        ['type', '=', 'opportunity'],
+        ['active', '=', true],
+      ];
+      const openLeads = await odooCall('crm.lead', 'search_read', [openDomain], {
+        fields: ['id', 'stage_id', 'source_id', 'campaign_id'],
+        limit: 10000,
+      });
+      const openDeptFiltered = openLeads.filter((l: any) => {
+        const campName = l.campaign_id ? l.campaign_id[1] : '';
+        const srcName = l.source_id ? l.source_id[1] : '';
+        return matchesDept(campName, dept) || matchesDept(srcName, dept);
+      });
+      openCount = openDeptFiltered.filter((l: any) => {
+        const stageId = l.stage_id ? l.stage_id[0] : 0;
+        return !wonStageIds.has(stageId);
+      }).length;
+    } catch (e) {
+      console.error('Open opps fetch failed:', e);
+      openCount = 0;
+    }
 
     const totalOpps = opps.length;
-    const closeRate = totalOpps > 0 ? (wonOpps.length / totalOpps) * 100 : 0;
     const revenue = wonOpps.reduce((s: number, l: any) => s + (Number(l.expected_revenue) || 0), 0);
 
     // Daily breakdown
@@ -199,11 +223,11 @@ export async function fetchSatisData(filters: SatisFilters): Promise<SatisData> 
     return {
       closeRate,
       wonCount: wonOpps.length,
-      closedCount: wonOpps.length + lostOpps.length,
+      closedCount,
       totalLeads: deptLeads.length,
       totalOpps,
       revenue,
-      openOpportunities: openOpps.length,
+      openOpportunities: openCount,
       dailyLeads,
       sourceBreakdown,
       tagBreakdown,
@@ -260,6 +284,33 @@ export async function fetchCampaignsList(): Promise<string[]> {
     const campaigns = await odooCall('utm.campaign', 'search_read', [[]], { fields: ['name'], limit: 200 });
     return campaigns.map((c: any) => c.name).filter((n: string) => !!n);
   } catch {
+    return [];
+  }
+}
+
+export async function fetchOdooLeadsDaily(dept: Dept, from: string, to: string): Promise<{ date: string; leads: number }[]> {
+  try {
+    const domain = [
+      ['create_date', '>=', from + ' 00:00:00'],
+      ['create_date', '<=', to + ' 23:59:59'],
+    ];
+    const fields = ['campaign_id', 'source_id', 'create_date'];
+    const leads = await odooCall('crm.lead', 'search_read', [domain], { fields, limit: 5000 });
+    const filtered = leads.filter((l: any) => {
+      const campName = l.campaign_id ? l.campaign_id[1] : '';
+      const srcName = l.source_id ? l.source_id[1] : '';
+      return matchesDept(campName, dept) || matchesDept(srcName, dept);
+    });
+    const dailyMap = new Map<string, number>();
+    for (const l of filtered) {
+      const date = String(l.create_date).slice(0, 10);
+      dailyMap.set(date, (dailyMap.get(date) || 0) + 1);
+    }
+    return Array.from(dailyMap.entries())
+      .map(([date, leads]) => ({ date, leads }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+  } catch (e) {
+    console.error('Daily leads fetch failed:', e);
     return [];
   }
 }

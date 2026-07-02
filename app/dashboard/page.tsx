@@ -8,60 +8,48 @@ import SatisAkademiyaView from '@/components/SatisAkademiyaView';
 import SatisHamisiEkspertView from '@/components/SatisHamisiEkspertView';
 import type { Dept } from '@/lib/types';
 import { DEPTS } from '@/lib/types';
-import { MONTHS_AZ, fmtDate } from '@/components/utils';
+import { type DateOption, dateRangeFromOption, formatDateRangeLabel } from '@/components/utils';
 
 export default function Dashboard() {
   const [tab, setTab] = useState<'hesabat' | 'satis'>('hesabat');
   const [dept, setDept] = useState<Dept>('hamisi-arash');
 
   // Hesabat dates
-  const [hesabatDateValue, setHesabatDateValue] = useState('2026-05');
-  const [hesabatFrom, setHesabatFrom] = useState('2026-05-01');
-  const [hesabatTo, setHesabatTo] = useState('2026-05-31');
-
-  // Satis dates (Odoo / Lazer / Akademiya / HamisiEkspert share one set)
-  const [satisFrom, setSatisFrom] = useState('2026-05-01');
-  const [satisTo, setSatisTo] = useState('2026-05-31');
+  const [dateOption, setDateOption] = useState<DateOption>('this-month');
+  const initialRange = dateRangeFromOption('this-month');
+  const [hesabatFrom, setHesabatFrom] = useState(initialRange.from);
+  const [hesabatTo, setHesabatTo] = useState(initialRange.to);
 
   const [platform, setPlatform] = useState('all');
   const [adset, setAdset] = useState('all');
 
   useEffect(() => {
-    if (hesabatDateValue === 'custom') return;
-    const [y, m] = hesabatDateValue.split('-').map(Number);
-    const from = new Date(y, m - 1, 1);
-    const to = new Date(y, m, 0);
-    setHesabatFrom(from.toISOString().slice(0, 10));
-    setHesabatTo(to.toISOString().slice(0, 10));
-  }, [hesabatDateValue]);
+    if (dateOption !== 'custom') {
+      const r = dateRangeFromOption(dateOption);
+      setHesabatFrom(r.from);
+      setHesabatTo(r.to);
+    }
+  }, [dateOption]);
 
-  // Reset adset when dept changes
   useEffect(() => { setAdset('all'); }, [dept]);
 
   const cfg = DEPTS[dept];
 
-  // Page title/subtitle
-  const dateLabel = (() => {
-    if (tab !== 'hesabat') return hesabatDateValue === 'custom' ? `${fmtDate(hesabatFrom)} – ${fmtDate(hesabatTo)}` : (() => {
-      const [y, m] = hesabatDateValue.split('-').map(Number);
-      return `${MONTHS_AZ[m - 1]} ${y}`;
-    })();
-    if (hesabatDateValue === 'custom') return `${fmtDate(hesabatFrom)} – ${fmtDate(hesabatTo)}`;
-    const [y, m] = hesabatDateValue.split('-').map(Number);
-    return `${MONTHS_AZ[m - 1]} ${y}`;
-  })();
-  const platSuffix = (tab === 'hesabat' && platform !== 'all') ? ` · ${platform === 'facebook' ? 'Facebook' : 'Instagram'}` : '';
-  const adsetSuffix = (tab === 'hesabat' && adset !== 'all') ? ` · Ad Set: ${adset}` : '';
+  // Hesabat subtitle
+  const dateLabel = formatDateRangeLabel(dateOption, hesabatFrom, hesabatTo);
+  const platSuffix = (platform !== 'all') ? ` · ${platform === 'facebook' ? 'Facebook' : 'Instagram'}` : '';
+  const adsetSuffix = (adset !== 'all') ? ` · Ad Set: ${adset}` : '';
+  const hesabatSubtitle = `${dateLabel} · ${cfg.name}${platSuffix}${adsetSuffix}`;
 
   return (
     <div className="min-h-screen flex flex-col">
       <Header
         dept={dept}
         onDeptChange={(d) => setDept(d as Dept)}
-        dateValue={hesabatDateValue}
+        dateOption={dateOption}
         dateFrom={hesabatFrom}
         dateTo={hesabatTo}
-        onDateValueChange={setHesabatDateValue}
+        onDateOptionChange={setDateOption}
         onDateFromChange={setHesabatFrom}
         onDateToChange={setHesabatTo}
         showDate={tab === 'hesabat'}
@@ -84,7 +72,7 @@ export default function Dashboard() {
       {/* Title */}
       <div className="max-w-7xl mx-auto px-6 pt-6 pb-2 w-full">
         <h1 className="text-2xl font-semibold">{tab === 'hesabat' ? 'Hesabat' : 'Satış'}</h1>
-        <div className="text-xs text-slate-500 mt-0.5">{dateLabel} · {cfg.name}{platSuffix}{adsetSuffix}</div>
+        {tab === 'hesabat' && <div className="text-xs text-slate-500 mt-0.5">{hesabatSubtitle}</div>}
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-4 pb-12 w-full flex-1">
@@ -95,20 +83,16 @@ export default function Dashboard() {
         )}
 
         {tab === 'satis' && cfg.satisLayout === 'odoo' && (
-          <SatisOdooView dept={dept} from={satisFrom} to={satisTo}
-                         onFromChange={setSatisFrom} onToChange={setSatisTo} />
+          <SatisOdooView dept={dept} />
         )}
         {tab === 'satis' && cfg.satisLayout === 'lazer' && (
-          <SatisLazerView from={satisFrom} to={satisTo}
-                          onFromChange={setSatisFrom} onToChange={setSatisTo} />
+          <SatisLazerView />
         )}
         {tab === 'satis' && cfg.satisLayout === 'akademiya' && (
-          <SatisAkademiyaView from={satisFrom} to={satisTo}
-                              onFromChange={setSatisFrom} onToChange={setSatisTo} />
+          <SatisAkademiyaView />
         )}
         {tab === 'satis' && cfg.satisLayout === 'hamisi-ekspert' && (
-          <SatisHamisiEkspertView from={satisFrom} to={satisTo}
-                                  onFromChange={setSatisFrom} onToChange={setSatisTo} />
+          <SatisHamisiEkspertView />
         )}
       </div>
 

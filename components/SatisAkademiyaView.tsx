@@ -2,43 +2,39 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Info } from 'lucide-react';
 import { Line, Doughnut } from 'react-chartjs-2';
-import { Chart as ChartJS, ArcElement, CategoryScale, Filler, Legend, LineElement, LinearScale, PointElement, Tooltip } from 'chart.js';
+import { Chart as ChartJS, ArcElement, LineElement, PointElement, LinearScale, CategoryScale, BarElement, Tooltip, Legend, Filler } from 'chart.js';
+ChartJS.register(ArcElement, LineElement, PointElement, LinearScale, CategoryScale, BarElement, Tooltip, Legend, Filler);
 
-ChartJS.register(ArcElement, CategoryScale, Filler, Legend, LineElement, LinearScale, PointElement, Tooltip);
 import GranularityToggle from './GranularityToggle';
+import DateFilter from './DateFilter';
 import type { AcademyRecord } from '@/lib/types';
-import { fmtAZN, fmtNum, dailyLabels, monthlyLabels } from './utils';
+import { fmtAZN, fmtNum, dailyLabels, monthlyLabels, type DateOption, dateRangeFromOption } from './utils';
 
-interface Props {
-  from: string;
-  to: string;
-  onFromChange: (v: string) => void;
-  onToChange: (v: string) => void;
-}
-
-export default function SatisAkademiyaView({ from, to, onFromChange, onToChange }: Props) {
+export default function SatisAkademiyaView() {
   const [allRecords, setAllRecords] = useState<AcademyRecord[]>([]);
   const [filteredRecords, setFilteredRecords] = useState<AcademyRecord[]>([]);
   const [status, setStatus] = useState('all');
-  const [dateValue, setDateValue] = useState('2026-05');
   const [regGran, setRegGran] = useState<'day' | 'month'>('day');
   const [revGran, setRevGran] = useState<'day' | 'month'>('day');
+
+  const [dateOption, setDateOption] = useState<DateOption>('this-month');
+  const initialRange = dateRangeFromOption('this-month');
+  const [from, setFrom] = useState(initialRange.from);
+  const [to, setTo] = useState(initialRange.to);
+
+  useEffect(() => {
+    if (dateOption !== 'custom') {
+      const r = dateRangeFromOption(dateOption);
+      setFrom(r.from);
+      setTo(r.to);
+    }
+  }, [dateOption]);
 
   useEffect(() => {
     fetch(`/api/sheets/academy?from=${from}&to=${to}`)
       .then(r => r.json())
       .then(d => { setAllRecords(d.all || []); setFilteredRecords(d.filtered || []); });
   }, [from, to]);
-
-  function changeDateMonth(value: string) {
-    setDateValue(value);
-    if (value === 'custom') return;
-    const [y, m] = value.split('-').map(Number);
-    const fromDate = new Date(y, m - 1, 1);
-    const toDate = new Date(y, m, 0);
-    onFromChange(fromDate.toISOString().slice(0, 10));
-    onToChange(toDate.toISOString().slice(0, 10));
-  }
 
   const filteredByStatus = useMemo(() => {
     if (status === 'all') return filteredRecords;
@@ -55,14 +51,11 @@ export default function SatisAkademiyaView({ from, to, onFromChange, onToChange 
   const filteredRegCount = filteredByStatus.length;
   const filteredRevenue = filteredByStatus.reduce((s, r) => s + r.payment, 0);
 
-  // Status pie (all)
   const statusCounts = { 'Aktiv': 0, 'Bitmiş': 0, 'Başlamayıb': 0 };
   for (const r of allRecords) statusCounts[r.status]++;
 
-  // Recent 10
   const recent = [...allByStatus].sort((a, b) => b.registeredAt.localeCompare(a.registeredAt)).slice(0, 10);
 
-  // Trend (registrations + revenue)
   const dateRegMap = new Map<string, number>();
   const dateRevMap = new Map<string, number>();
   for (const r of filteredByStatus) {
@@ -71,7 +64,6 @@ export default function SatisAkademiyaView({ from, to, onFromChange, onToChange 
   }
 
   function genTrendData(gran: 'day' | 'month', map: Map<string, number>): number[] {
-    const labels = gran === 'day' ? dailyLabels(from, to) : monthlyLabels(from, to);
     if (gran === 'day') {
       const arr: number[] = [];
       const cur = new Date(from);
@@ -116,15 +108,8 @@ export default function SatisAkademiyaView({ from, to, onFromChange, onToChange 
         <div className="grid grid-cols-2 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-[11px] font-medium text-slate-500 mb-1.5 px-1">Tarix</label>
-            <select value={dateValue} onChange={(e) => changeDateMonth(e.target.value)}
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none cursor-pointer">
-              <option value="2026-05">May 2026</option>
-              <option value="2026-04">Aprel 2026</option>
-              <option value="2026-03">Mart 2026</option>
-              <option value="2026-02">Fevral 2026</option>
-              <option value="2026-01">Yanvar 2026</option>
-              <option value="custom">Tarix aralığı seç</option>
-            </select>
+            <DateFilter option={dateOption} from={from} to={to}
+                        onOptionChange={setDateOption} onFromChange={setFrom} onToChange={setTo} />
           </div>
           <div>
             <label className="block text-[11px] font-medium text-slate-500 mb-1.5 px-1">Status</label>
@@ -137,18 +122,6 @@ export default function SatisAkademiyaView({ from, to, onFromChange, onToChange 
             </select>
           </div>
         </div>
-        {dateValue === 'custom' && (
-          <div className="mt-3 pt-3 border-t border-slate-100">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs text-slate-500 font-medium">Diapazon:</span>
-              <input type="date" value={from} onChange={(e) => onFromChange(e.target.value)}
-                     className="rounded-lg border border-slate-200 bg-white text-sm px-3 py-1.5 outline-none" />
-              <span className="text-slate-400">→</span>
-              <input type="date" value={to} onChange={(e) => onToChange(e.target.value)}
-                     className="rounded-lg border border-slate-200 bg-white text-sm px-3 py-1.5 outline-none" />
-            </div>
-          </div>
-        )}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
